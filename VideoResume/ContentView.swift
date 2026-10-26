@@ -1,25 +1,60 @@
 import SwiftUI
 
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
+
 struct ContentView: View {
+    var body: some View {
+        TabView {
+            SummaryLibraryView()
+                .tabItem { Label("Resúmenes", systemImage: "doc.text") }
+
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem { Label("Ajustes", systemImage: "gearshape") }
+        }
+    }
+}
+
+private struct SummaryLibraryView: View {
     @EnvironmentObject private var model: AppViewModel
-    @State private var showingSettings = false
 
     var body: some View {
         NavigationSplitView {
-            List(model.history) { record in
-                NavigationLink(value: record) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(record.title).lineLimit(2)
-                        Text(record.createdAt, style: .date)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            List {
+                ForEach(model.history) { record in
+                    NavigationLink(value: record) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(record.title).lineLimit(2)
+                            Text(record.createdAt, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            model.deleteSummary(record)
+                        } label: {
+                            Label("Borrar", systemImage: "trash")
+                        }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            model.deleteSummary(record)
+                        } label: {
+                            Label("Borrar resumen", systemImage: "trash")
+                        }
                     }
                 }
+                .onDelete(perform: model.deleteSummaries)
             }
-            .navigationTitle("VideoResume")
+            .navigationTitle("Resúmenes")
             .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: refreshPlacement) {
                     Button {
                         Task { await model.processNewVideos() }
                     } label: {
@@ -28,11 +63,9 @@ struct ContentView: View {
                     .disabled(model.isProcessing)
                 }
 
+                #if os(iOS)
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingSettings = true } label: {
-                        Label("Ajustes", systemImage: "gearshape")
-                    }
-                    .accessibilityIdentifier("settingsButton")
+                    EditButton()
                 }
                 #endif
             }
@@ -45,23 +78,14 @@ struct ContentView: View {
                     )
                 }
             }
-        } detail: {
-            ContentUnavailableView("Selecciona un resumen", systemImage: "doc.text.magnifyingglass")
-                .navigationDestination(for: SummaryRecord.self) { record in
-                    SummaryDetailView(record: record)
-                }
-        }
-        .toolbar {
-            #if os(macOS)
-            ToolbarItemGroup {
-                Button {
-                    Task { await model.processNewVideos() }
-                } label: {
-                    Label("Buscar vídeos nuevos", systemImage: "arrow.clockwise")
-                }
-                .disabled(model.isProcessing)
+            .navigationDestination(for: SummaryRecord.self) { record in
+                SummaryDetailView(record: record)
             }
-            #endif
+        } detail: {
+            ContentUnavailableView(
+                "Selecciona un resumen",
+                systemImage: "doc.text.magnifyingglass"
+            )
         }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 10) {
@@ -73,17 +97,6 @@ struct ContentView: View {
             .padding(.vertical, 8)
             .background(.bar)
         }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack {
-                SettingsView()
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("OK") { showingSettings = false }
-                        }
-                    }
-            }
-        }
-        .emailComposer(draft: $model.emailDraft)
         .alert("VideoResume", isPresented: Binding(
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } }
@@ -93,19 +106,30 @@ struct ContentView: View {
             Text(model.errorMessage ?? "")
         }
     }
+
+    private var refreshPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        .topBarLeading
+        #else
+        .automatic
+        #endif
+    }
 }
 
 private struct SummaryDetailView: View {
-    @EnvironmentObject private var model: AppViewModel
     let record: SummaryRecord
+    @State private var copied = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text(record.title).font(.title).bold()
                 if let url = record.videoURL {
-                    Link(destination: url) { Label("Abrir en YouTube", systemImage: "play.rectangle") }
+                    Link(destination: url) {
+                        Label("Abrir en YouTube", systemImage: "play.rectangle")
+                    }
                 }
+                Divider()
                 Text(record.summary).textSelection(.enabled)
             }
             .frame(maxWidth: 760, alignment: .leading)
@@ -113,9 +137,33 @@ private struct SummaryDetailView: View {
         }
         .navigationTitle(record.title)
         .toolbar {
-            Button { model.prepareEmail(for: record) } label: {
-                Label("Enviar por email", systemImage: "envelope")
+            Button(action: copySummary) {
+                Label(
+                    copied ? "Copiado" : "Copiar",
+                    systemImage: copied ? "checkmark" : "doc.on.doc"
+                )
             }
+        }
+    }
+
+    private func copySummary() {
+        let text = [
+            record.title,
+            record.videoURL?.absoluteString,
+            record.summary
+        ].compactMap { $0 }.joined(separator: "\n\n")
+
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
+
+        copied = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
         }
     }
 }

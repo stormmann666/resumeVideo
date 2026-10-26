@@ -4,7 +4,6 @@ struct AppSettings: Codable, Equatable {
     var channelIdentifier = ""
     var playlistName = "resume"
     var playlistID = ""
-    var recipientEmail = ""
     var openRouterModel = "openai/gpt-4.1-mini"
     var summaryPrompt = """
     Resume el vídeo en español. Empieza con una síntesis de 3 a 5 líneas, continúa con las ideas clave en viñetas y termina con acciones o conclusiones útiles. No inventes datos que no aparezcan en el contenido.
@@ -27,13 +26,6 @@ struct SummaryRecord: Identifiable, Codable, Hashable {
     let summary: String
     let videoURL: URL?
     let createdAt: Date
-}
-
-struct EmailDraft: Identifiable {
-    let id = UUID()
-    let recipient: String
-    let subject: String
-    let body: String
 }
 
 enum VideoResumeError: LocalizedError {

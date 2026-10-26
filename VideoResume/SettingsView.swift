@@ -23,19 +23,11 @@ struct SettingsView: View {
                     .frame(minHeight: 150)
             }
 
-            Section("Entrega") {
-                TextField("Email destinatario", text: $model.settings.recipientEmail)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    #endif
-            }
-
             Section {
                 Button("Guardar ajustes") { model.saveSettings() }
                     .buttonStyle(.borderedProminent)
             } footer: {
-                Text("Las API keys se guardan en Keychain. El envío se confirma en la app Mail del dispositivo.")
+                Text("Las API keys se guardan de forma segura en Keychain.")
             }
         }
         .formStyle(.grouped)
