@@ -106,6 +106,18 @@ final class AppViewModel: ObservableObject {
         persistHistoryAfterDeletion()
     }
 
+    func discardSummary(_ record: SummaryRecord) {
+        history.removeAll { $0.id == record.id }
+        processedVideoIDs.remove(record.id)
+        do {
+            try settingsStore.saveHistory(history)
+            settingsStore.saveProcessedVideoIDs(processedVideoIDs)
+            status = "Resumen descartado; se procesará de nuevo al refrescar"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func validateSettings() throws {
         if youtubeAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw VideoResumeError.missingSettings("API key de YouTube")

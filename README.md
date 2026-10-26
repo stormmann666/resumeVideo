@@ -29,7 +29,7 @@ Las claves se guardan en el Keychain del dispositivo. El resto de ajustes y el h
 
 ## Biblioteca de resúmenes
 
-La pantalla **Resúmenes** permite abrir cada resultado, copiar su contenido completo al portapapeles y borrarlo mediante el modo Editar o deslizando la fila. El registro de vídeos procesados se conserva aunque se borre un resumen, de modo que ese vídeo no se vuelve a procesar.
+La pantalla **Resúmenes** permite abrir cada resultado, copiar su contenido completo al portapapeles y borrarlo mediante el modo Editar o deslizando la fila. El registro de vídeos procesados se conserva al borrar normalmente. La acción **Descartar y volver a resumir** elimina también ese registro, por lo que el vídeo se procesa de nuevo en el siguiente refresco.
 
 ## Seguridad
 

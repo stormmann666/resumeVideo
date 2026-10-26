@@ -48,6 +48,11 @@ private struct SummaryLibraryView: View {
                         } label: {
                             Label("Borrar resumen", systemImage: "trash")
                         }
+                        Button {
+                            model.discardSummary(record)
+                        } label: {
+                            Label("Descartar y volver a resumir", systemImage: "arrow.counterclockwise")
+                        }
                     }
                 }
                 .onDelete(perform: model.deleteSummaries)
@@ -117,8 +122,11 @@ private struct SummaryLibraryView: View {
 }
 
 private struct SummaryDetailView: View {
+    @EnvironmentObject private var model: AppViewModel
+    @Environment(\.dismiss) private var dismiss
     let record: SummaryRecord
     @State private var copied = false
+    @State private var confirmingDiscard = false
 
     var body: some View {
         ScrollView {
@@ -137,12 +145,32 @@ private struct SummaryDetailView: View {
         }
         .navigationTitle(record.title)
         .toolbar {
-            Button(action: copySummary) {
-                Label(
-                    copied ? "Copiado" : "Copiar",
-                    systemImage: copied ? "checkmark" : "doc.on.doc"
-                )
+            ToolbarItemGroup {
+                Button(action: copySummary) {
+                    Label(
+                        copied ? "Copiado" : "Copiar",
+                        systemImage: copied ? "checkmark" : "doc.on.doc"
+                    )
+                }
+                Button {
+                    confirmingDiscard = true
+                } label: {
+                    Label("Descartar", systemImage: "arrow.counterclockwise")
+                }
             }
+        }
+        .confirmationDialog(
+            "¿Descartar este resumen?",
+            isPresented: $confirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Descartar y volver a resumir", role: .destructive) {
+                model.discardSummary(record)
+                dismiss()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se eliminará el resumen y el vídeo volverá a procesarse la próxima vez que pulses refrescar.")
         }
     }
 
