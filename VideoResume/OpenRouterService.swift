@@ -8,8 +8,28 @@ struct OpenRouterService {
     }
 
     func summarize(video: VideoItem, content: String, settings: AppSettings, apiKey: String) async throws -> String {
+        try await summarize(
+            title: video.title,
+            content: content,
+            context: "URL: \(video.url?.absoluteString ?? "")",
+            settings: settings,
+            apiKey: apiKey
+        )
+    }
+
+    func summarizeText(title: String, content: String, settings: AppSettings, apiKey: String) async throws -> String {
+        try await summarize(
+            title: title,
+            content: content,
+            context: "Origen: texto u OCR",
+            settings: settings,
+            apiKey: apiKey
+        )
+    }
+
+    private func summarize(title: String, content: String, context: String, settings: AppSettings, apiKey: String) async throws -> String {
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw VideoResumeError.noContent(video.title)
+            throw VideoResumeError.noContent(title)
         }
         let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
         var request = URLRequest(url: endpoint)
@@ -22,7 +42,7 @@ struct OpenRouterService {
             model: settings.openRouterModel,
             messages: [
                 .init(role: "system", content: settings.summaryPrompt),
-                .init(role: "user", content: "Título: \(video.title)\nURL: \(video.url?.absoluteString ?? "")\n\nContenido:\n\(clipped)")
+                .init(role: "user", content: "Título: \(title)\n\(context)\n\nContenido:\n\(clipped)")
             ]
         )
         request.httpBody = try JSONEncoder().encode(body)

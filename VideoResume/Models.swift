@@ -28,6 +28,34 @@ struct SummaryRecord: Identifiable, Codable, Hashable {
     let createdAt: Date
 }
 
+enum TextSummarySource: String, Codable, CaseIterable {
+    case photoOCR
+    case clipboard
+
+    var title: String {
+        switch self {
+        case .photoOCR: "Foto OCR"
+        case .clipboard: "Portapapeles"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .photoOCR: "text.viewfinder"
+        case .clipboard: "doc.on.clipboard"
+        }
+    }
+}
+
+struct TextSummaryRecord: Identifiable, Codable, Hashable {
+    let id: UUID
+    let title: String
+    let source: TextSummarySource
+    let originalText: String
+    let summary: String
+    let createdAt: Date
+}
+
 enum VideoResumeError: LocalizedError {
     case missingSettings(String)
     case invalidResponse

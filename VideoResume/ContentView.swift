@@ -1,16 +1,13 @@
 import SwiftUI
 
-#if os(iOS)
-import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
-
 struct ContentView: View {
     var body: some View {
         TabView {
             SummaryLibraryView()
                 .tabItem { Label("Resúmenes", systemImage: "doc.text") }
+
+            TextSummaryLibraryView()
+                .tabItem { Label("Texto/OCR", systemImage: "text.viewfinder") }
 
             NavigationStack {
                 SettingsView()
@@ -181,12 +178,7 @@ private struct SummaryDetailView: View {
             record.summary
         ].compactMap { $0 }.joined(separator: "\n\n")
 
-        #if os(iOS)
-        UIPasteboard.general.string = text
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
+        Clipboard.copy(text)
 
         copied = true
         Task {

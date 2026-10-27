@@ -6,7 +6,9 @@ final class AppViewModel: ObservableObject {
     @Published var youtubeAPIKey = ""
     @Published var openRouterAPIKey = ""
     @Published private(set) var history: [SummaryRecord] = []
+    @Published private(set) var textHistory: [TextSummaryRecord] = []
     @Published private(set) var isProcessing = false
+    @Published private(set) var isTextProcessing = false
     @Published private(set) var status = "Listo"
     @Published var errorMessage: String?
 
@@ -21,6 +23,7 @@ final class AppViewModel: ObservableObject {
         youtubeAPIKey = keychain.read(.youtubeAPIKey)
         openRouterAPIKey = keychain.read(.openRouterAPIKey)
         history = settingsStore.loadHistory()
+        textHistory = settingsStore.loadTextHistory()
         // Migra instalaciones anteriores, donde el historial también hacía de registro.
         processedVideoIDs = settingsStore.loadProcessedVideoIDs().union(history.map(\.id))
         settingsStore.saveProcessedVideoIDs(processedVideoIDs)
@@ -118,6 +121,57 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func createTextSummary(title: String, text: String, source: TextSummarySource) async -> Bool {
+        guard !isTextProcessing else { return false }
+        do {
+            try validateOpenRouterSettings()
+            let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanText.isEmpty else { throw VideoResumeError.noContent(title) }
+            isTextProcessing = true
+            status = "Resumiendo texto…"
+            let resolvedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "\(source.title) – \(Date.now.formatted(date: .abbreviated, time: .shortened))"
+                : title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let summary = try await openRouter.summarizeText(
+                title: resolvedTitle,
+                content: cleanText,
+                settings: settings,
+                apiKey: openRouterAPIKey
+            )
+            let record = TextSummaryRecord(
+                id: UUID(),
+                title: resolvedTitle,
+                source: source,
+                originalText: cleanText,
+                summary: summary,
+                createdAt: .now
+            )
+            textHistory.insert(record, at: 0)
+            try settingsStore.saveTextHistory(textHistory)
+            status = "Resumen de texto guardado"
+            isTextProcessing = false
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            status = "No se pudo resumir el texto"
+            isTextProcessing = false
+            return false
+        }
+    }
+
+    func deleteTextSummaries(at offsets: IndexSet) {
+        for offset in offsets.sorted(by: >) {
+            textHistory.remove(at: offset)
+        }
+        persistTextHistory()
+    }
+
+    func deleteTextSummary(_ record: TextSummaryRecord) {
+        textHistory.removeAll { $0.id == record.id }
+        persistTextHistory()
+    }
+
     private func validateSettings() throws {
         if youtubeAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw VideoResumeError.missingSettings("API key de YouTube")
@@ -126,6 +180,10 @@ final class AppViewModel: ObservableObject {
             settings.channelIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw VideoResumeError.missingSettings("canal o ID de playlist")
         }
+        try validateOpenRouterSettings()
+    }
+
+    private func validateOpenRouterSettings() throws {
         if openRouterAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw VideoResumeError.missingSettings("API key de OpenRouter")
         }
@@ -138,6 +196,15 @@ final class AppViewModel: ObservableObject {
         do {
             try settingsStore.saveHistory(history)
             status = "Resumen eliminado"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func persistTextHistory() {
+        do {
+            try settingsStore.saveTextHistory(textHistory)
+            status = "Resumen de texto eliminado"
         } catch {
             errorMessage = error.localizedDescription
         }

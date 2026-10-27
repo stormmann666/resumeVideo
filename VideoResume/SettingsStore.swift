@@ -4,6 +4,7 @@ struct SettingsStore {
     private let settingsKey = "videoResume.settings.v1"
     private let historyKey = "videoResume.history.v1"
     private let processedVideoIDsKey = "videoResume.processedVideoIDs.v1"
+    private let textHistoryKey = "videoResume.textHistory.v1"
     private let defaults = UserDefaults.standard
 
     func loadSettings() -> AppSettings {
@@ -36,5 +37,17 @@ struct SettingsStore {
 
     func saveProcessedVideoIDs(_ ids: Set<String>) {
         defaults.set(ids.sorted(), forKey: processedVideoIDsKey)
+    }
+
+    func loadTextHistory() -> [TextSummaryRecord] {
+        guard let data = defaults.data(forKey: textHistoryKey),
+              let value = try? JSONDecoder().decode([TextSummaryRecord].self, from: data) else {
+            return []
+        }
+        return value.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func saveTextHistory(_ records: [TextSummaryRecord]) throws {
+        defaults.set(try JSONEncoder().encode(records), forKey: textHistoryKey)
     }
 }

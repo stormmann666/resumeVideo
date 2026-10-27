@@ -31,6 +31,10 @@ Las claves se guardan en el Keychain del dispositivo. El resto de ajustes y el h
 
 La pantalla **Resúmenes** permite abrir cada resultado, copiar su contenido completo al portapapeles y borrarlo mediante el modo Editar o deslizando la fila. El registro de vídeos procesados se conserva al borrar normalmente. La acción **Descartar y volver a resumir** elimina también ese registro, por lo que el vídeo se procesa de nuevo en el siguiente refresco.
 
+## Texto y OCR
+
+La pantalla **Texto/OCR** crea resúmenes independientes a partir de hasta diez fotos o del texto del portapapeles. Las fotos se procesan localmente con Vision OCR y el texto reconocido puede revisarse antes de enviarlo a OpenRouter. Los resultados se guardan en una biblioteca separada, permiten copiar el resumen o el texto original y se pueden eliminar.
+
 ## Seguridad
 
 No subas claves al repositorio. VideoResume no escribe las claves en archivos ni en `UserDefaults`; utiliza Keychain.
