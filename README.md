@@ -33,7 +33,7 @@ La pantalla **Resúmenes** permite abrir cada resultado, copiar su contenido com
 
 ## Texto y OCR
 
-La pantalla **Texto/OCR** crea resúmenes independientes a partir de hasta diez fotos o del texto del portapapeles. Las fotos se procesan localmente con Vision OCR y el texto reconocido puede revisarse antes de enviarlo a OpenRouter. Los resultados se guardan en una biblioteca separada, permiten copiar el resumen o el texto original y se pueden eliminar.
+La pantalla **Texto/OCR** crea resúmenes independientes a partir de fotos o del texto del portapapeles. Permite seleccionar hasta diez imágenes por lote y, en iOS, hacer una o más fotos con la cámara. El OCR de cada imagen se añade en orden al texto existente para poder combinar varios lotes y capturas. Las fotos se procesan localmente con Vision y el texto reconocido puede revisarse antes de enviarlo a OpenRouter. Los resultados se guardan en una biblioteca separada, permiten copiar el resumen o el texto original y se pueden eliminar.
 
 ## Seguridad
 

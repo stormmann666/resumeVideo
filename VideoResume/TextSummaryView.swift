@@ -1,5 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct TextSummaryLibraryView: View {
     @EnvironmentObject private var model: AppViewModel
@@ -107,6 +110,11 @@ private struct NewTextSummaryView: View {
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var isRecognizing = false
     @State private var recognitionError: String?
+    @State private var capturedPhotoCount = 0
+    @State private var importedPhotoCount = 0
+    #if os(iOS)
+    @State private var showingCamera = false
+    #endif
     @FocusState private var focusedField: Field?
 
     private let ocr = OCRService()
@@ -127,15 +135,46 @@ private struct NewTextSummaryView: View {
 
             Section("Contenido") {
                 if source == .photoOCR {
-                    PhotosPicker(
-                        selection: $selectedPhotos,
-                        maxSelectionCount: 10,
-                        matching: .images
-                    ) {
+                    VStack(spacing: 12) {
+                        PhotosPicker(
+                            selection: $selectedPhotos,
+                            maxSelectionCount: 10,
+                            matching: .images
+                        ) {
+                            OCRSourceCard(
+                                title: "Elegir de Fotos",
+                                subtitle: "Selecciona hasta 10 imágenes a la vez",
+                                systemImage: "photo.stack.fill",
+                                color: .blue
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        #if os(iOS)
+                        Button {
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                showingCamera = true
+                            } else {
+                                recognitionError = "La cámara no está disponible en este dispositivo."
+                            }
+                        } label: {
+                            OCRSourceCard(
+                                title: "Usar cámara",
+                                subtitle: "Haz una foto y repite para añadir más",
+                                systemImage: "camera.fill",
+                                color: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        #endif
+                    }
+                    if importedPhotoCount > 0 || capturedPhotoCount > 0 {
                         Label(
-                            selectedPhotos.isEmpty ? "Seleccionar fotos" : "\(selectedPhotos.count) foto(s) seleccionada(s)",
-                            systemImage: "photo.on.rectangle.angled"
+                            "Añadidas: \(importedPhotoCount) de Fotos · \(capturedPhotoCount) de cámara",
+                            systemImage: "checkmark.circle.fill"
                         )
+                            .font(.caption)
+                            .foregroundStyle(.green)
                     }
                     if isRecognizing {
                         HStack {
@@ -203,6 +242,17 @@ private struct NewTextSummaryView: View {
         .onChange(of: selectedPhotos) { _, _ in
             Task { await recognizeSelectedPhotos() }
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraPicker { data in
+                showingCamera = false
+                Task { await recognizeCameraPhoto(data) }
+            } onCancel: {
+                showingCamera = false
+            }
+            .ignoresSafeArea()
+        }
+        #endif
         .onTapGesture { focusedField = nil }
         #if os(iOS)
         .scrollDismissesKeyboard(.interactively)
@@ -238,7 +288,10 @@ private struct NewTextSummaryView: View {
     private func recognizeSelectedPhotos() async {
         guard !selectedPhotos.isEmpty else { return }
         isRecognizing = true
-        defer { isRecognizing = false }
+        defer {
+            isRecognizing = false
+            selectedPhotos = []
+        }
         do {
             var pages: [String] = []
             for item in selectedPhotos {
@@ -246,10 +299,73 @@ private struct NewTextSummaryView: View {
                 pages.append(try await ocr.recognizeText(in: data))
             }
             guard !pages.isEmpty else { throw VideoResumeError.noContent("las imágenes") }
-            inputText = pages.joined(separator: "\n\n———\n\n")
+            appendRecognizedText(pages.joined(separator: "\n\n———\n\n"))
+            importedPhotoCount += pages.count
         } catch {
             recognitionError = error.localizedDescription
         }
+    }
+
+    #if os(iOS)
+    @MainActor
+    private func recognizeCameraPhoto(_ data: Data) async {
+        isRecognizing = true
+        defer { isRecognizing = false }
+        do {
+            appendRecognizedText(try await ocr.recognizeText(in: data))
+            capturedPhotoCount += 1
+        } catch {
+            recognitionError = error.localizedDescription
+        }
+    }
+    #endif
+
+    private func appendRecognizedText(_ text: String) {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        if inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            inputText = clean
+        } else {
+            inputText += "\n\n———\n\n\(clean)"
+        }
+    }
+}
+
+private struct OCRSourceCard: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 46, height: 46)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.35), lineWidth: 1)
+        }
+        .contentShape(Rectangle())
     }
 }
 
