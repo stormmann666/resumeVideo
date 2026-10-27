@@ -35,6 +35,8 @@ La pantalla **Resúmenes** permite abrir cada resultado, copiar su contenido com
 
 La pantalla **Texto/OCR** crea resúmenes independientes a partir de fotos o del texto del portapapeles. Permite seleccionar hasta diez imágenes por lote y, en iOS, hacer una o más fotos con la cámara. El OCR de cada imagen se añade en orden al texto existente para poder combinar varios lotes y capturas. Las fotos se procesan localmente con Vision y el texto reconocido puede revisarse antes de enviarlo a OpenRouter. Los resultados se guardan en una biblioteca separada, permiten copiar el resumen o el texto original y se pueden eliminar.
 
+En ambas bibliotecas, los resúmenes sin leer se muestran con fondo azul suave, título destacado y la marca **Nuevo**. Se marcan como leídos al abrirlos y las pestañas muestran el número de elementos pendientes.
+
 ## Seguridad
 
 No subas claves al repositorio. VideoResume no escribe las claves en archivos ni en `UserDefaults`; utiliza Keychain.

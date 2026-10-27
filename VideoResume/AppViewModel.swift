@@ -11,6 +11,8 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var isTextProcessing = false
     @Published private(set) var status = "Listo"
     @Published var errorMessage: String?
+    @Published private(set) var readVideoIDs: Set<String> = []
+    @Published private(set) var readTextIDs: Set<UUID> = []
 
     private let settingsStore = SettingsStore()
     private let keychain = KeychainStore()
@@ -24,6 +26,8 @@ final class AppViewModel: ObservableObject {
         openRouterAPIKey = keychain.read(.openRouterAPIKey)
         history = settingsStore.loadHistory()
         textHistory = settingsStore.loadTextHistory()
+        readVideoIDs = settingsStore.loadReadVideoIDs()
+        readTextIDs = settingsStore.loadReadTextIDs()
         // Migra instalaciones anteriores, donde el historial también hacía de registro.
         processedVideoIDs = settingsStore.loadProcessedVideoIDs().union(history.map(\.id))
         settingsStore.saveProcessedVideoIDs(processedVideoIDs)
@@ -98,23 +102,30 @@ final class AppViewModel: ObservableObject {
     }
 
     func deleteSummaries(at offsets: IndexSet) {
+        let removedIDs = offsets.map { history[$0].id }
         for offset in offsets.sorted(by: >) {
             history.remove(at: offset)
         }
+        readVideoIDs.subtract(removedIDs)
+        settingsStore.saveReadVideoIDs(readVideoIDs)
         persistHistoryAfterDeletion()
     }
 
     func deleteSummary(_ record: SummaryRecord) {
         history.removeAll { $0.id == record.id }
+        readVideoIDs.remove(record.id)
+        settingsStore.saveReadVideoIDs(readVideoIDs)
         persistHistoryAfterDeletion()
     }
 
     func discardSummary(_ record: SummaryRecord) {
         history.removeAll { $0.id == record.id }
         processedVideoIDs.remove(record.id)
+        readVideoIDs.remove(record.id)
         do {
             try settingsStore.saveHistory(history)
             settingsStore.saveProcessedVideoIDs(processedVideoIDs)
+            settingsStore.saveReadVideoIDs(readVideoIDs)
             status = "Resumen descartado; se procesará de nuevo al refrescar"
         } catch {
             errorMessage = error.localizedDescription
@@ -161,15 +172,50 @@ final class AppViewModel: ObservableObject {
     }
 
     func deleteTextSummaries(at offsets: IndexSet) {
+        let removedIDs = offsets.map { textHistory[$0].id }
         for offset in offsets.sorted(by: >) {
             textHistory.remove(at: offset)
         }
+        readTextIDs.subtract(removedIDs)
+        settingsStore.saveReadTextIDs(readTextIDs)
         persistTextHistory()
     }
 
     func deleteTextSummary(_ record: TextSummaryRecord) {
         textHistory.removeAll { $0.id == record.id }
+        readTextIDs.remove(record.id)
+        settingsStore.saveReadTextIDs(readTextIDs)
         persistTextHistory()
+    }
+
+    func isVideoSummaryRead(_ record: SummaryRecord) -> Bool {
+        readVideoIDs.contains(record.id)
+    }
+
+    func markVideoSummaryRead(_ record: SummaryRecord) {
+        guard readVideoIDs.insert(record.id).inserted else { return }
+        settingsStore.saveReadVideoIDs(readVideoIDs)
+    }
+
+    func isTextSummaryRead(_ record: TextSummaryRecord) -> Bool {
+        readTextIDs.contains(record.id)
+    }
+
+    func markTextSummaryRead(_ record: TextSummaryRecord) {
+        guard readTextIDs.insert(record.id).inserted else { return }
+        settingsStore.saveReadTextIDs(readTextIDs)
+    }
+
+    var unreadVideoCount: Int {
+        history.reduce(into: 0) { count, record in
+            if !readVideoIDs.contains(record.id) { count += 1 }
+        }
+    }
+
+    var unreadTextCount: Int {
+        textHistory.reduce(into: 0) { count, record in
+            if !readTextIDs.contains(record.id) { count += 1 }
+        }
     }
 
     private func validateSettings() throws {

@@ -17,17 +17,27 @@ struct TextSummaryLibraryView: View {
                             Image(systemName: record.source.systemImage)
                                 .foregroundStyle(.tint)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(record.title).lineLimit(2)
+                                Text(record.title)
+                                    .fontWeight(model.isTextSummaryRead(record) ? .regular : .semibold)
+                                    .lineLimit(2)
                                 HStack {
                                     Text(record.source.title)
                                     Text("·")
                                     Text(record.createdAt, style: .date)
+                                    if !model.isTextSummaryRead(record) {
+                                        Text("Nuevo")
+                                            .foregroundStyle(.blue)
+                                            .fontWeight(.semibold)
+                                    }
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             }
                         }
                     }
+                    .listRowBackground(
+                        model.isTextSummaryRead(record) ? Color.clear : Color.blue.opacity(0.12)
+                    )
                     .swipeActions {
                         Button(role: .destructive) {
                             model.deleteTextSummary(record)
@@ -430,5 +440,6 @@ private struct TextSummaryDetailView: View {
             }
             Button("Cancelar", role: .cancel) {}
         }
+        .onAppear { model.markTextSummaryRead(record) }
     }
 }

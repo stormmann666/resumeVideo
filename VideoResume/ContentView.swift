@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var model: AppViewModel
+
     var body: some View {
         TabView {
             SummaryLibraryView()
                 .tabItem { Label("Resúmenes", systemImage: "doc.text") }
+                .badge(model.unreadVideoCount)
 
             TextSummaryLibraryView()
                 .tabItem { Label("Texto/OCR", systemImage: "text.viewfinder") }
+                .badge(model.unreadTextCount)
 
             NavigationStack {
                 SettingsView()
@@ -25,13 +29,32 @@ private struct SummaryLibraryView: View {
             List {
                 ForEach(model.history) { record in
                     NavigationLink(value: record) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(record.title).lineLimit(2)
-                            Text(record.createdAt, style: .date)
+                        HStack(spacing: 10) {
+                            if !model.isVideoSummaryRead(record) {
+                                Circle()
+                                    .fill(.blue)
+                                    .frame(width: 9, height: 9)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(record.title)
+                                    .fontWeight(model.isVideoSummaryRead(record) ? .regular : .semibold)
+                                    .lineLimit(2)
+                                HStack {
+                                    Text(record.createdAt, style: .date)
+                                    if !model.isVideoSummaryRead(record) {
+                                        Text("Nuevo")
+                                            .foregroundStyle(.blue)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                    .listRowBackground(
+                        model.isVideoSummaryRead(record) ? Color.clear : Color.blue.opacity(0.12)
+                    )
                     .swipeActions {
                         Button(role: .destructive) {
                             model.deleteSummary(record)
@@ -169,6 +192,7 @@ private struct SummaryDetailView: View {
         } message: {
             Text("Se eliminará el resumen y el vídeo volverá a procesarse la próxima vez que pulses refrescar.")
         }
+        .onAppear { model.markVideoSummaryRead(record) }
     }
 
     private func copySummary() {
