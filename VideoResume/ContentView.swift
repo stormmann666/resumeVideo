@@ -9,6 +9,10 @@ struct ContentView: View {
                 .tabItem { Label("Resúmenes", systemImage: "doc.text") }
                 .badge(model.unreadVideoCount)
 
+            FavoritesLibraryView()
+                .tabItem { Label("Favoritos", systemImage: "star.fill") }
+                .badge(model.favoriteHistory.count)
+
             TextSummaryLibraryView()
                 .tabItem { Label("Texto/OCR", systemImage: "text.viewfinder") }
                 .badge(model.unreadTextCount)
@@ -29,28 +33,7 @@ private struct SummaryLibraryView: View {
             List {
                 ForEach(model.history) { record in
                     NavigationLink(value: record) {
-                        HStack(spacing: 10) {
-                            if !model.isVideoSummaryRead(record) {
-                                Circle()
-                                    .fill(.blue)
-                                    .frame(width: 9, height: 9)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(record.title)
-                                    .fontWeight(model.isVideoSummaryRead(record) ? .regular : .semibold)
-                                    .lineLimit(2)
-                                HStack {
-                                    Text(record.createdAt, style: .date)
-                                    if !model.isVideoSummaryRead(record) {
-                                        Text("Nuevo")
-                                            .foregroundStyle(.blue)
-                                            .fontWeight(.semibold)
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                        }
+                        SummaryRow(record: record)
                     }
                     .listRowBackground(
                         model.isVideoSummaryRead(record) ? Color.clear : Color.blue.opacity(0.12)
@@ -61,8 +44,25 @@ private struct SummaryLibraryView: View {
                         } label: {
                             Label("Borrar", systemImage: "trash")
                         }
+                        Button {
+                            model.toggleFavorite(record)
+                        } label: {
+                            Label(
+                                model.isFavorite(record) ? "Quitar favorito" : "Favorito",
+                                systemImage: model.isFavorite(record) ? "star.slash" : "star"
+                            )
+                        }
+                        .tint(.yellow)
                     }
                     .contextMenu {
+                        Button {
+                            model.toggleFavorite(record)
+                        } label: {
+                            Label(
+                                model.isFavorite(record) ? "Quitar de favoritos" : "Añadir a favoritos",
+                                systemImage: model.isFavorite(record) ? "star.slash" : "star"
+                            )
+                        }
                         Button(role: .destructive) {
                             model.deleteSummary(record)
                         } label: {
@@ -141,6 +141,94 @@ private struct SummaryLibraryView: View {
     }
 }
 
+private struct FavoritesLibraryView: View {
+    @EnvironmentObject private var model: AppViewModel
+
+    var body: some View {
+        NavigationSplitView {
+            List {
+                ForEach(model.favoriteHistory) { record in
+                    NavigationLink(value: record) {
+                        SummaryRow(record: record)
+                    }
+                    .listRowBackground(
+                        model.isVideoSummaryRead(record) ? Color.clear : Color.blue.opacity(0.12)
+                    )
+                    .swipeActions {
+                        Button {
+                            model.toggleFavorite(record)
+                        } label: {
+                            Label("Quitar", systemImage: "star.slash")
+                        }
+                        .tint(.yellow)
+                    }
+                    .contextMenu {
+                        Button {
+                            model.toggleFavorite(record)
+                        } label: {
+                            Label("Quitar de favoritos", systemImage: "star.slash")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Favoritos")
+            .overlay {
+                if model.favoriteHistory.isEmpty {
+                    ContentUnavailableView(
+                        "Aún no hay favoritos",
+                        systemImage: "star",
+                        description: Text("Marca un vídeo con la estrella para verlo aquí.")
+                    )
+                }
+            }
+            .navigationDestination(for: SummaryRecord.self) { record in
+                SummaryDetailView(record: record)
+            }
+        } detail: {
+            ContentUnavailableView(
+                "Selecciona un favorito",
+                systemImage: "star.square"
+            )
+        }
+    }
+}
+
+private struct SummaryRow: View {
+    @EnvironmentObject private var model: AppViewModel
+    let record: SummaryRecord
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if !model.isVideoSummaryRead(record) {
+                Circle()
+                    .fill(.blue)
+                    .frame(width: 9, height: 9)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.title)
+                    .fontWeight(model.isVideoSummaryRead(record) ? .regular : .semibold)
+                    .lineLimit(2)
+                HStack {
+                    Text(record.createdAt, style: .date)
+                    if !model.isVideoSummaryRead(record) {
+                        Text("Nuevo")
+                            .foregroundStyle(.blue)
+                            .fontWeight(.semibold)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if model.isFavorite(record) {
+                Image(systemName: "star.fill")
+                    .foregroundStyle(.yellow)
+                    .accessibilityLabel("Favorito")
+            }
+        }
+    }
+}
+
 private struct SummaryDetailView: View {
     @EnvironmentObject private var model: AppViewModel
     @Environment(\.dismiss) private var dismiss
@@ -166,6 +254,14 @@ private struct SummaryDetailView: View {
         .navigationTitle(record.title)
         .toolbar {
             ToolbarItemGroup {
+                Button {
+                    model.toggleFavorite(record)
+                } label: {
+                    Label(
+                        model.isFavorite(record) ? "Quitar de favoritos" : "Añadir a favoritos",
+                        systemImage: model.isFavorite(record) ? "star.fill" : "star"
+                    )
+                }
                 Button(action: copySummary) {
                     Label(
                         copied ? "Copiado" : "Copiar",

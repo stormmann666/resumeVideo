@@ -7,6 +7,7 @@ struct SettingsStore {
     private let textHistoryKey = "videoResume.textHistory.v1"
     private let readVideoIDsKey = "videoResume.readVideoIDs.v1"
     private let readTextIDsKey = "videoResume.readTextIDs.v1"
+    private let favoriteVideoIDsKey = "videoResume.favoriteVideoIDs.v1"
     private let defaults = UserDefaults.standard
 
     func loadSettings() -> AppSettings {
@@ -67,5 +68,13 @@ struct SettingsStore {
 
     func saveReadTextIDs(_ ids: Set<UUID>) {
         defaults.set(ids.map(\.uuidString).sorted(), forKey: readTextIDsKey)
+    }
+
+    func loadFavoriteVideoIDs() -> Set<String> {
+        Set(defaults.stringArray(forKey: favoriteVideoIDsKey) ?? [])
+    }
+
+    func saveFavoriteVideoIDs(_ ids: Set<String>) {
+        defaults.set(ids.sorted(), forKey: favoriteVideoIDsKey)
     }
 }

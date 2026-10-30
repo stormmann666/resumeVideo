@@ -13,6 +13,7 @@ final class AppViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var readVideoIDs: Set<String> = []
     @Published private(set) var readTextIDs: Set<UUID> = []
+    @Published private(set) var favoriteVideoIDs: Set<String> = []
 
     private let settingsStore = SettingsStore()
     private let keychain = KeychainStore()
@@ -28,6 +29,7 @@ final class AppViewModel: ObservableObject {
         textHistory = settingsStore.loadTextHistory()
         readVideoIDs = settingsStore.loadReadVideoIDs()
         readTextIDs = settingsStore.loadReadTextIDs()
+        favoriteVideoIDs = settingsStore.loadFavoriteVideoIDs()
         // Migra instalaciones anteriores, donde el historial también hacía de registro.
         processedVideoIDs = settingsStore.loadProcessedVideoIDs().union(history.map(\.id))
         settingsStore.saveProcessedVideoIDs(processedVideoIDs)
@@ -108,6 +110,8 @@ final class AppViewModel: ObservableObject {
         }
         readVideoIDs.subtract(removedIDs)
         settingsStore.saveReadVideoIDs(readVideoIDs)
+        favoriteVideoIDs.subtract(removedIDs)
+        settingsStore.saveFavoriteVideoIDs(favoriteVideoIDs)
         persistHistoryAfterDeletion()
     }
 
@@ -115,6 +119,8 @@ final class AppViewModel: ObservableObject {
         history.removeAll { $0.id == record.id }
         readVideoIDs.remove(record.id)
         settingsStore.saveReadVideoIDs(readVideoIDs)
+        favoriteVideoIDs.remove(record.id)
+        settingsStore.saveFavoriteVideoIDs(favoriteVideoIDs)
         persistHistoryAfterDeletion()
     }
 
@@ -122,10 +128,12 @@ final class AppViewModel: ObservableObject {
         history.removeAll { $0.id == record.id }
         processedVideoIDs.remove(record.id)
         readVideoIDs.remove(record.id)
+        favoriteVideoIDs.remove(record.id)
         do {
             try settingsStore.saveHistory(history)
             settingsStore.saveProcessedVideoIDs(processedVideoIDs)
             settingsStore.saveReadVideoIDs(readVideoIDs)
+            settingsStore.saveFavoriteVideoIDs(favoriteVideoIDs)
             status = "Resumen descartado; se procesará de nuevo al refrescar"
         } catch {
             errorMessage = error.localizedDescription
@@ -195,6 +203,25 @@ final class AppViewModel: ObservableObject {
     func markVideoSummaryRead(_ record: SummaryRecord) {
         guard readVideoIDs.insert(record.id).inserted else { return }
         settingsStore.saveReadVideoIDs(readVideoIDs)
+    }
+
+    func isFavorite(_ record: SummaryRecord) -> Bool {
+        favoriteVideoIDs.contains(record.id)
+    }
+
+    func toggleFavorite(_ record: SummaryRecord) {
+        if favoriteVideoIDs.contains(record.id) {
+            favoriteVideoIDs.remove(record.id)
+            status = "Eliminado de favoritos"
+        } else {
+            favoriteVideoIDs.insert(record.id)
+            status = "Añadido a favoritos"
+        }
+        settingsStore.saveFavoriteVideoIDs(favoriteVideoIDs)
+    }
+
+    var favoriteHistory: [SummaryRecord] {
+        history.filter { favoriteVideoIDs.contains($0.id) }
     }
 
     func isTextSummaryRead(_ record: TextSummaryRecord) -> Bool {
